@@ -1,29 +1,49 @@
-# Version 1.3 - Llama-4-Scout-17b Edition
+# Version 1.4 - High Contrast & Physical Cards
 import streamlit as st
 import random
 import time
 from groq import Groq
 
 # --- SETUP ---
-st.set_page_config(page_title="Cosmic Bestie Tarot", page_icon="🔮", layout="centered")
+st.set_page_config(page_title="Cosmic Bestie Tarot", page_icon="🔮")
 
-# --- UI STYLING ---
+# --- CUSTOM CSS (Legibility & Real Cards) ---
 st.markdown("""
     <style>
-    .stApp { background: linear-gradient(180deg, #0f0c29 0%, #302b63 50%, #24243e 100%); color: #f8f9fa; }
-    div.stButton > button:first-child {
-        background-color: #6A0DAD;
-        color: white;
-        border-radius: 12px;
-        border: 1px solid #FF1493;
+    /* 1. Better Readability: Dark background but clear white/pink text */
+    .stApp { 
+        background-color: #0A0414; 
+        color: #FFFFFF; 
+    }
+    
+    /* 2. Style for "Real" Cards */
+    .tarot-card {
+        background: linear-gradient(135deg, #1e1233 0%, #3a2359 100%);
+        border: 2px solid #FF1493;
+        border-radius: 15px;
+        padding: 40px 20px;
+        text-align: center;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        margin-bottom: 10px;
+        font-size: 50px;
         transition: 0.3s;
     }
-    div.stButton > button:hover {
-        background-color: #FF1493;
-        border: 1px solid #white;
-        transform: translateY(-2px);
+    
+    /* 3. High-Contrast Text for Question & Readings */
+    .reading-box {
+        background-color: #161122;
+        border-left: 5px solid #FF1493;
+        padding: 20px;
+        border-radius: 10px;
+        color: #FFFFFF !important;
+        font-size: 1.1rem;
+        line-height: 1.6;
     }
-    .card-text { font-size: 1.2rem; font-weight: bold; color: #FF1493; }
+    
+    /* 4. Make Input Text readable */
+    input { color: white !important; }
+    
+    h1, h2, h3 { color: #FF1493 !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -38,46 +58,40 @@ TAROT_DECK = [
 # --- SESSION STATE ---
 if 'step' not in st.session_state:
     st.session_state.step = "question"
-if 'user_question' not in st.session_state:
-    st.session_state.user_question = ""
 
 # --- CLIENT ---
 try:
-    # Ensure your secrets.toml has the key 'GROQ_API_KEY'
     client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 except Exception:
-    st.error("Hold up! The cosmic key (API Key) is missing from your secrets.")
+    st.error("Missing API Key in Secrets!")
     st.stop()
 
-# --- APP LOGIC ---
+# --- APP ---
 
 st.title("🔮 Cosmic Bestie Tarot")
-st.write("---")
 
 if st.session_state.step == "question":
-    st.markdown("### ✨ What's the tea today, gorgeous?")
-    q = st.text_input("Ask your question to the stars...", placeholder="Will I secure the bag this month?")
+    st.markdown("### ✨ What's the tea today?")
+    q = st.text_input("Ask your question...", placeholder="Should I text them back?")
     
-    if st.button("Shuffle the Vibe"):
+    if st.button("Shuffle the Deck"):
         if q:
             st.session_state.user_question = q
             st.session_state.step = "pick"
             st.rerun()
         else:
-            st.warning("Honey, I need a question to work with! Type something.")
+            st.warning("I need a question to focus the energy!")
 
 elif st.session_state.step == "pick":
-    st.markdown(f"### 🃏 Focus on: *'{st.session_state.user_question}'*")
-    st.write("The deck is ready. Which one is calling your name?")
+    st.markdown(f"### 🃏 Question: *{st.session_state.user_question}*")
+    st.write("Pick the card that 'glows' for you:")
     
-    # 3-Card Selection Grid
     cols = st.columns(3)
-    card_options = ["Left Card", "Center Card", "Right Card"]
-    
     for idx, col in enumerate(cols):
         with col:
-            st.markdown(f"<div style='text-align: center;'><p class='card-text'>✨</p></div>", unsafe_allow_html=True)
-            if st.button(card_options[idx]):
+            # The "Physical" Card look
+            st.markdown('<div class="tarot-card">✨</div>', unsafe_allow_html=True)
+            if st.button(f"Pick Card {idx+1}", use_container_width=True):
                 st.session_state.chosen_card = random.choice(TAROT_DECK)
                 st.session_state.step = "reveal"
                 st.rerun()
@@ -86,39 +100,26 @@ elif st.session_state.step == "reveal":
     card = st.session_state.chosen_card
     orientation = random.choice(["Upright", "Reversed"])
     
-    with st.status("Consulting Llama-4-Scout...", expanded=True) as status:
-        st.write(f"You pulled: **{card} ({orientation})**")
-        
+    # Reveal Animation/UI
+    col1, col2, col3 = st.columns([1,2,1])
+    with col2:
+        st.markdown(f'<div class="tarot-card">{card}<br><span style="font-size:15px; color:#FF1493;">({orientation})</span></div>', unsafe_allow_html=True)
+
+    with st.spinner("Consulting Llama-4-Scout..."):
         try:
-            # Using the new Llama-4-Scout-17b model
             response = client.chat.completions.create(
                 messages=[
-                    {
-                        "role": "system", 
-                        "content": "You are a witty, Gen-Z Cosmic Bestie tarot reader. Use modern slang (slay, tea, bestie, bet). Keep it under 100 words. Be high-energy and brutally honest but supportive."
-                    },
-                    {
-                        "role": "user", 
-                        "content": f"The question is '{st.session_state.user_question}'. The card is '{card}' in the '{orientation}' position. Give me the tea."
-                    }
+                    {"role": "system", "content": "You are a witty, Gen-Z Cosmic Bestie reader. High contrast, high energy. Use slay, tea, bestie, bet. Max 80 words."},
+                    {"role": "user", "content": f"Q: {st.session_state.user_question}. Card: {card} ({orientation})."}
                 ],
-                model="meta-llama/llama-4-scout-17b-16e-instruct",
-                temperature=0.85,
-                max_tokens=150
+                model="meta-llama/llama-4-scout-17b-16e-instruct"
             )
             reading = response.choices[0].message.content
-            status.update(label="Manifestation Complete!", state="complete")
-        except Exception as e:
-            st.error("The cosmic signal is fuzzy! (API Error)")
-            reading = "The stars are literally ghosting us right now. Try again in a minute, bestie."
+        except Exception:
+            reading = "The stars are ghosting us. Try again!"
 
-    # Visual Celebration
-    st.balloons()
+    st.markdown(f'<div class="reading-box">{reading}</div>', unsafe_allow_html=True)
     
-    # The Reveal
-    with st.chat_message("assistant", avatar="✨"):
-        st.write(reading)
-    
-    if st.button("New Reading, Who Dis?"):
+    if st.button("Ask Again"):
         st.session_state.step = "question"
         st.rerun()
