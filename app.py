@@ -107,7 +107,7 @@ if st.button("🔮 Reveal My Fate"):
                         {"role": "system", "content": system_prompt},
                         {"role": "user", "content": user_prompt}
                     ],
-                    model="llama3-8b-8192", # Fast and token-efficient model
+                    model="meta-llama/llama-4-scout-17b-16e-instruct", # Fast and token-efficient model
                     temperature=0.8, # Slightly high for creativity
                     max_tokens=250 # Hard limit to prevent token bleeding
                 )
