@@ -1,4 +1,4 @@
-# Version 1.5 - Fixed Contrast & Interactive Cards
+# Version 1.6 - 3-Card Spread Edition
 import streamlit as st
 import random
 from groq import Groq
@@ -6,144 +6,108 @@ from groq import Groq
 # --- SETUP ---
 st.set_page_config(page_title="Cosmic Bestie Tarot", page_icon="🔮")
 
-# --- CUSTOM CSS (Legibility & Button Fixes) ---
+# --- CUSTOM CSS ---
 st.markdown("""
     <style>
-    /* 1. Global Page Style */
-    .stApp { 
-        background-color: #0A0414; 
-        color: #FFFFFF; 
-    }
-    
-    /* 2. Style for "Real" Cards */
+    .stApp { background-color: #0A0414; color: #FFFFFF; }
     .tarot-card {
         background: linear-gradient(135deg, #1e1233 0%, #3a2359 100%);
         border: 2px solid #FF1493;
-        border-radius: 15px;
-        padding: 40px 20px;
+        border-radius: 12px;
+        padding: 20px 10px;
         text-align: center;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        margin-bottom: 10px;
-        font-size: 40px;
-        font-weight: bold;
+        box-shadow: 0 8px 16px rgba(0,0,0,0.5);
         color: #FFFFFF;
+        font-weight: bold;
+        min-height: 150px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
     }
-    
-    /* 3. Button Customization (The Fix) */
+    .card-label { color: #FF1493; font-size: 0.8rem; margin-top: 5px; text-transform: uppercase; }
     div.stButton > button {
         background-color: #6A0DAD !important;
         color: #FFFFFF !important;
         border: 2px solid #FF1493 !important;
         border-radius: 10px !important;
-        font-weight: bold !important;
-        padding: 10px 20px !important;
-        width: 100%;
     }
-
-    div.stButton > button:hover {
-        background-color: #FF1493 !important;
-        color: #FFFFFF !important;
-        border: 2px solid #FFFFFF !important;
-    }
-    
-    /* 4. Reading Box Style */
+    div.stButton > button:hover { background-color: #FF1493 !important; }
     .reading-box {
         background-color: #161122;
-        border: 1px solid #3A2359;
         border-left: 5px solid #FF1493;
         padding: 20px;
         border-radius: 10px;
-        color: #FFFFFF !important;
-        font-size: 1.1rem;
-        line-height: 1.6;
         margin-top: 20px;
-    }
-
-    /* 5. Ensuring Input Labels and Text are Visible */
-    label, .stMarkdown, p {
-        color: #E2D4F0 !important;
-    }
-    
-    input {
-        background-color: #1E1233 !important;
-        color: white !important;
-        border: 1px solid #FF1493 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- DECK DATA ---
-TAROT_DECK = [
-    "The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor",
-    "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit",
-    "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance",
-    "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "The World"
-]
+# --- DATA ---
+TAROT_DECK = ["The Fool", "The Magician", "The High Priestess", "The Empress", "The Emperor", "The Hierophant", "The Lovers", "The Chariot", "Strength", "The Hermit", "Wheel of Fortune", "Justice", "The Hanged Man", "Death", "Temperance", "The Devil", "The Tower", "The Star", "The Moon", "The Sun", "The World"]
 
 # --- SESSION STATE ---
-if 'step' not in st.session_state:
-    st.session_state.step = "question"
+if 'step' not in st.session_state: st.session_state.step = "question"
+if 'picks' not in st.session_state: st.session_state.picks = []
 
 # --- CLIENT ---
-try:
-    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
-except Exception:
-    st.error("Missing API Key! Check your Secrets dashboard.")
-    st.stop()
+client = Groq(api_key=st.secrets["GROQ_API_KEY"])
 
 # --- APP FLOW ---
-
 st.title("🔮 Cosmic Bestie Tarot")
 
 if st.session_state.step == "question":
-    st.markdown("### ✨ What's the vibe today?")
-    q = st.text_input("Ask your question...", placeholder="Should I quit my job and become a DJ?")
-    
-    if st.button("Shuffle & Connect"):
+    q = st.text_input("Ask about your past, present, and future...", placeholder="Will my life finally make sense?")
+    if st.button("Consult the Stars"):
         if q:
             st.session_state.user_question = q
             st.session_state.step = "pick"
+            st.session_state.picks = []
             st.rerun()
-        else:
-            st.warning("Bestie, I need a question first!")
 
 elif st.session_state.step == "pick":
-    st.markdown(f"### 🃏 Focus on: *{st.session_state.user_question}*")
-    st.write("The spirits have shuffled. Choose your destiny:")
+    st.subheader(f"Pick 3 cards for your spread...")
+    progress = len(st.session_state.picks)
+    st.write(f"Cards selected: {progress} / 3")
     
     cols = st.columns(3)
-    card_labels = ["Left Path", "Inner Voice", "Right Path"]
-    
-    for idx, col in enumerate(cols):
-        with col:
+    for i in range(3):
+        with cols[i]:
             st.markdown('<div class="tarot-card">✨</div>', unsafe_allow_html=True)
-            if st.button(card_labels[idx]):
-                st.session_state.chosen_card = random.choice(TAROT_DECK)
-                st.session_state.step = "reveal"
+            if st.button(f"Draw Card", key=f"btn_{i}_{progress}"):
+                card = random.choice(TAROT_DECK)
+                orient = random.choice(["Upright", "Reversed"])
+                st.session_state.picks.append({"name": card, "pos": orient})
+                if len(st.session_state.picks) == 3:
+                    st.session_state.step = "reveal"
                 st.rerun()
 
 elif st.session_state.step == "reveal":
-    card = st.session_state.chosen_card
-    orientation = random.choice(["Upright", "Reversed"])
+    st.markdown(f"### ✨ The Universe's Response")
+    p = st.session_state.picks
     
-    # Visual Reveal
-    st.markdown(f'<div class="tarot-card">{card}<br><span style="font-size:16px; color:#FF1493;">{orientation}</span></div>', unsafe_allow_html=True)
+    # Display the 3-Card Spread
+    cols = st.columns(3)
+    labels = ["PAST", "PRESENT", "FUTURE"]
+    for i in range(3):
+        with cols[i]:
+            st.markdown(f'<div class="tarot-card">{p[i]["name"]}<br><span class="card-label">{p[i]["pos"]}</span><br><span style="font-size:10px; opacity:0.6;">{labels[i]}</span></div>', unsafe_allow_html=True)
 
-    with st.spinner("Llama-4-Scout is checking the stars..."):
+    with st.spinner("Llama-4-Scout is weaving your story..."):
         try:
+            prompt = f"Question: {st.session_state.user_question}. Spread: 1. Past: {p[0]['name']} ({p[0]['pos']}), 2. Present: {p[1]['name']} ({p[1]['pos']}), 3. Future: {p[2]['name']} ({p[2]['pos']})."
             response = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are a witty, Gen-Z Cosmic Bestie reader. Use slang like slay, tea, bestie, bet. Max 80 words."},
-                    {"role": "user", "content": f"Q: {st.session_state.user_question}. Card: {card} ({orientation})."}
+                    {"role": "system", "content": "You are a witty Gen-Z Tarot Bestie. Interpret this 3-card spread (Past, Present, Future) as one cohesive story. Use slay, tea, bet using bahasa indonesia. Max 120 words."},
+                    {"role": "user", "content": prompt}
                 ],
                 model="meta-llama/llama-4-scout-17b-16e-instruct"
             )
             reading = response.choices[0].message.content
-        except Exception:
-            reading = "The connection to the astral plane is weak! Try again, babe."
+        except:
+            reading = "The cosmic WiFi is down, bestie. Try again!"
 
     st.markdown(f'<div class="reading-box">{reading}</div>', unsafe_allow_html=True)
-    
-    if st.button("Another Question?"):
+    if st.button("New Reading"):
         st.session_state.step = "question"
         st.rerun()
