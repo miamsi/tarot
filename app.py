@@ -1,4 +1,4 @@
-# Version 1.6 - 3-Card Spread Edition
+# Version 1.7 - Error Proof 3-Card Spread
 import streamlit as st
 import random
 from groq import Groq
@@ -49,9 +49,14 @@ TAROT_DECK = ["The Fool", "The Magician", "The High Priestess", "The Empress", "
 # --- SESSION STATE ---
 if 'step' not in st.session_state: st.session_state.step = "question"
 if 'picks' not in st.session_state: st.session_state.picks = []
+if 'user_question' not in st.session_state: st.session_state.user_question = ""
 
 # --- CLIENT ---
-client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+try:
+    client = Groq(api_key=st.secrets["GROQ_API_KEY"])
+except:
+    st.error("API Key missing!")
+    st.stop()
 
 # --- APP FLOW ---
 st.title("🔮 Cosmic Bestie Tarot")
@@ -61,8 +66,8 @@ if st.session_state.step == "question":
     if st.button("Consult the Stars"):
         if q:
             st.session_state.user_question = q
+            st.session_state.picks = [] # Clear old picks
             st.session_state.step = "pick"
-            st.session_state.picks = []
             st.rerun()
 
 elif st.session_state.step == "pick":
@@ -70,19 +75,28 @@ elif st.session_state.step == "pick":
     progress = len(st.session_state.picks)
     st.write(f"Cards selected: {progress} / 3")
     
+    # Simple grid for picking
     cols = st.columns(3)
     for i in range(3):
         with cols[i]:
             st.markdown('<div class="tarot-card">✨</div>', unsafe_allow_html=True)
-            if st.button(f"Draw Card", key=f"btn_{i}_{progress}"):
-                card = random.choice(TAROT_DECK)
-                orient = random.choice(["Upright", "Reversed"])
-                st.session_state.picks.append({"name": card, "pos": orient})
+            # Use unique keys to avoid button conflicts
+            if st.button(f"Draw Card {i+1}", key=f"pick_btn_{i}_{progress}"):
+                if len(st.session_state.picks) < 3:
+                    card = random.choice(TAROT_DECK)
+                    orient = random.choice(["Upright", "Reversed"])
+                    st.session_state.picks.append({"name": card, "pos": orient})
+                
                 if len(st.session_state.picks) == 3:
                     st.session_state.step = "reveal"
                 st.rerun()
 
 elif st.session_state.step == "reveal":
+    # SAFETY CHECK: If we got here by accident without 3 cards, go back
+    if len(st.session_state.picks) < 3:
+        st.session_state.step = "pick"
+        st.rerun()
+        
     st.markdown(f"### ✨ The Universe's Response")
     p = st.session_state.picks
     
@@ -91,14 +105,21 @@ elif st.session_state.step == "reveal":
     labels = ["PAST", "PRESENT", "FUTURE"]
     for i in range(3):
         with cols[i]:
-            st.markdown(f'<div class="tarot-card">{p[i]["name"]}<br><span class="card-label">{p[i]["pos"]}</span><br><span style="font-size:10px; opacity:0.6;">{labels[i]}</span></div>', unsafe_allow_html=True)
+            # This is the line that was crashing; now p[i] is guaranteed to exist
+            st.markdown(f'''
+                <div class="tarot-card">
+                    {p[i]["name"]}
+                    <br><span class="card-label">{p[i]["pos"]}</span>
+                    <br><span style="font-size:10px; opacity:0.6;">{labels[i]}</span>
+                </div>
+                ''', unsafe_allow_html=True)
 
     with st.spinner("Llama-4-Scout is weaving your story..."):
         try:
             prompt = f"Question: {st.session_state.user_question}. Spread: 1. Past: {p[0]['name']} ({p[0]['pos']}), 2. Present: {p[1]['name']} ({p[1]['pos']}), 3. Future: {p[2]['name']} ({p[2]['pos']})."
             response = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are a witty Gen-Z Tarot Bestie. Interpret this 3-card spread (Past, Present, Future) as one cohesive story. Use slay, tea, bet using bahasa indonesia. Max 120 words."},
+                    {"role": "system", "content": "You are a witty Gen-Z Tarot Bestie. Interpret this 3-card spread as one story. Use slang. Max 100 words."},
                     {"role": "user", "content": prompt}
                 ],
                 model="meta-llama/llama-4-scout-17b-16e-instruct"
@@ -108,6 +129,8 @@ elif st.session_state.step == "reveal":
             reading = "The cosmic WiFi is down, bestie. Try again!"
 
     st.markdown(f'<div class="reading-box">{reading}</div>', unsafe_allow_html=True)
+    
     if st.button("New Reading"):
         st.session_state.step = "question"
+        st.session_state.picks = []
         st.rerun()
