@@ -1,3 +1,4 @@
-# Version 1
-streamlit==1.32.0
-groq==0.4.2
+# Version 1.1 - Dependency Fix
+streamlit>=1.35.0
+groq==0.9.0
+httpx==0.27.2
