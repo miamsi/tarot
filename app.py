@@ -119,7 +119,7 @@ elif st.session_state.step == "reveal":
             prompt = f"Question: {st.session_state.user_question}. Spread: 1. Past: {p[0]['name']} ({p[0]['pos']}), 2. Present: {p[1]['name']} ({p[1]['pos']}), 3. Future: {p[2]['name']} ({p[2]['pos']})."
             response = client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are a witty Gen-Z Tarot Bestie. Interpret this 3-card spread as one story. Use slang. Max 100 words."},
+                    {"role": "system", "content": "You are a witty Gen-Z Tarot Bestie. Interpret this 3-card spread as one story. Use slang. Max 200 words."},
                     {"role": "user", "content": prompt}
                 ],
                 model="meta-llama/llama-4-scout-17b-16e-instruct"
